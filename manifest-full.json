@@ -1,0 +1,17 @@
+{
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "name": "Video tchat",
+  "short_name": "VideoTchat",
+  "description": "Video that P2P",
+  "display": "fullscreen",
+  "start_url": "/projet/video/multi_best",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/favico.ico",
+      "sizes": "16x16 32x32",
+      "type": "image/ico"
+    }
+  ]
+}

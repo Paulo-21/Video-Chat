@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="fr" dir="ltr">
+    <head>
+        <title>Video</title>
+        <meta charset="utf-8">
+        <meta name="description" content="WebRTC video tchat"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <script src="ping.min.js" async></script>
+        <script src="fullscreen_tchat.js" async></script>
+        <link rel="manifest" href="manifest-full.json">
+        <!--<script src="https://webrtc.github.io/adapter/adapter-latest.js" async></script>-->
+    </head>
+    <body>
+        <div class="conteneur">
+            <div class="commande">
+                <div>WebSocket :
+                    <span id="websocket" class="info">Non Connecté</span><br><br>
+                    <label for="direct">
+                        <input type="radio" id="direct" name="linkType" value="direct" onclick="connect_to_room(this)" >
+                        Direct Link</label>
+                    <label for="proxy">
+                        <input type="radio" id="proxy" name="linkType" value="proxy" onclick="connect_to_room(this)" checked>
+                        Proxy</label>
+                </div>
+                <br>
+                <div>Info :
+                    <span id="info" class="info"><br></span>
+                </div>
+                <br>
+                <div><label for="user_message">WebRTC :</label>
+                    <span id="webrtc" class="info">Non Connecté</span>
+                </div>
+                <label for="room">Server Name : </label>
+                <input type="text" id="room" placeholder="Nom du sallon" onchange="changeRoom()">
+                <button type="button" onclick="connect_to_room({value:'proxy'})">Connection</button>
+                <br>
+                <label for="name">Pseudo : </label>
+                <input type="text" id="name" placeholder="Pseudo" onchange="changeName()">
+                <br>
+                <button type="button" id="call" style="width:100%; height:30px;" onclick="start()">Call</button><br>
+                <button type="button" onclick="pingWebsocket('ping')">Get ping</button><br>
+                <div id="ping"></div>
+                <label for="codecPreferenceCamera">Codec for camera</label>
+                <select class="codecPreference" name="camera" id="codecPreferenceCamera">
+                    <option value="">Default codec</option>
+                </select>
+                <label for="codecPreferenceScreen">Codec for screen sharing</label>
+                <select class="codecPreference" name="screen" id="codecPreferenceScreen">
+                    <option value="">Default codec</option>
+                </select><br>
+                <button type="button" name="stats" onclick="showStats()">Show stats</button>
+                <div id="WebSocketPerson"></div>
+            </div>
+            <div class="tchat">
+                <div id="conteneurVideo" class="conteneurVideo">
+                    <video id="localVideo"  class="localVideo" autoplay playinline muted ></video>
+                    <div id="acceptCall" class="acceptCall" style="display:none">Accepter l'appel</div>
+                    <div class="icon">
+                        <!--<svg id="fullscreen" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewbox="-10 -10 68 68">
+                          <circle cx="24" cy="24" r="25">
+                            <title>Enter fullscreen</title>
+                          </circle>
+                          <path class="on" transform="scale(0.8), translate(7,6)" d="M10 32h6v6h4V28H10v4zm6-16h-6v4h10V10h-4v6zm12 22h4v-6h6v-4H28v10zm4-22v-6h-4v10h10v-4h-6z" fill="white"/>
+                          <path class="off" transform="scale(0.8), translate(7,6)"  d="M14 28h-4v10h10v-4h-6v-6zm-4-8h4v-6h6v-4H10v10zm24 14h-6v4h10V28h-4v6zm-6-24v4h6v6h4V10H28z" fill="white"/>
+                      </svg>-->
+                      <svg id="screenShare" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewbox="-10 -10 68 68">
+                            <title>Screen Share</title>
+                          <circle cx="24" cy="24" r="25">
+                          </circle>
+                          <path class="on" transform="scale(0.8), translate(7,6)" d="M10 32h6v6h4V28H10v4zm6-16h-6v4h10V10h-4v6zm12 22h4v-6h6v-4H28v10zm4-22v-6h-4v10h10v-4h-6z" fill="white"/>
+                          <path class="off" transform="scale(0.8), translate(7,6)"  d="M14 28h-4v10h10v-4h-6v-6zm-4-8h4v-6h6v-4H10v10zm24 14h-6v4h10V28h-4v6zm-6-24v4h6v6h4V10H28z" fill="white"/>
+                      </svg>
+                        <svg id="mute-audio" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="-10 -10 68 68">
+                            <title>Mute audio</title>
+                          <circle cx="24" cy="24" r="25">
+                          </circle>
+                          <path class="on" id="offAudio" transform="scale(0.6), translate(17,18)" d="M38 22h-3.4c0 1.49-.31 2.87-.87 4.1l2.46 2.46C37.33 26.61 38 24.38 38 22zm-8.03.33c0-.11.03-.22.03-.33V10c0-3.32-2.69-6-6-6s-6 2.68-6 6v.37l11.97 11.96zM8.55 6L6 8.55l12.02 12.02v1.44c0 3.31 2.67 6 5.98 6 .45 0 .88-.06 1.3-.15l3.32 3.32c-1.43.66-3 1.03-4.62 1.03-5.52 0-10.6-4.2-10.6-10.2H10c0 6.83 5.44 12.47 12 13.44V42h4v-6.56c1.81-.27 3.53-.9 5.08-1.81L39.45 42 42 39.46 8.55 6z" fill="white"></path>
+                          <path class="off" transform="scale(0.6), translate(17,18)" d="M24 28c3.31 0 5.98-2.69 5.98-6L30 10c0-3.32-2.68-6-6-6-3.31 0-6 2.68-6 6v12c0 3.31 2.69 6 6 6zm10.6-6c0 6-5.07 10.2-10.6 10.2-5.52 0-10.6-4.2-10.6-10.2H10c0 6.83 5.44 12.47 12 13.44V42h4v-6.56c6.56-.97 12-6.61 12-13.44h-3.4z" fill="white"></path>
+                        </svg>
+                        <svg id="mute-video" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewbox="-10 -10 68 68">
+                            <title>Mute video</title>
+                          <circle cx="24" cy="24" r="25">
+                          </circle>
+                          <path class="on" id="offVideo" transform="scale(0.6), translate(17,16)" d="M40 8H15.64l8 8H28v4.36l1.13 1.13L36 16v12.36l7.97 7.97L44 36V12c0-2.21-1.79-4-4-4zM4.55 2L2 4.55l4.01 4.01C4.81 9.24 4 10.52 4 12v24c0 2.21 1.79 4 4 4h29.45l4 4L44 41.46 4.55 2zM12 16h1.45L28 30.55V32H12V16z" fill="white"/>
+                          <path class="off" transform="scale(0.6), translate(17,16)" d="M40 8H8c-2.21 0-4 1.79-4 4v24c0 2.21 1.79 4 4 4h32c2.21 0 4-1.79 4-4V12c0-2.21-1.79-4-4-4zm-4 24l-8-6.4V32H12V16h16v6.4l8-6.4v16z" fill="white"/>
+                        </svg>
+                        <svg id="endCall" class="" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="-10 -10 68 68">
+                            <title>Fin d'appel</title>
+                          <circle cx="24" cy="24" r="25">
+                          </circle>
+                          <path transform="scale(0.7), translate(11,10)" d="M24 18c-3.21 0-6.3.5-9.2 1.44v6.21c0 .79-.46 1.47-1.12 1.8-1.95.98-3.74 2.23-5.33 3.7-.36.35-.85.57-1.4.57-.55 0-1.05-.22-1.41-.59L.59 26.18c-.37-.37-.59-.87-.59-1.42 0-.55.22-1.05.59-1.42C6.68 17.55 14.93 14 24 14s17.32 3.55 23.41 9.34c.37.36.59.87.59 1.42 0 .55-.22 1.05-.59 1.41l-4.95 4.95c-.36.36-.86.59-1.41.59-.54 0-1.04-.22-1.4-.57-1.59-1.47-3.38-2.72-5.33-3.7-.66-.33-1.12-1.01-1.12-1.8v-6.21C30.3 18.5 27.21 18 24 18z" fill="white"></path>
+                        </svg>
+                    </div>
+                    <div id="conteneur_remoteVideo" class="conteneur_remoteVideo"></div>
+
+
+                </div>
+                <div class="conteneurInputMessage">
+                    <div id="output_message" class="output_message"></div>
+                    <div class="inputZone">
+
+                        <input type="text" id="user_message" placeholder="message">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="optionVideo" id="spe-select" style="display:none">
+                <div id="optionAbout" class="optionAbout"></div>
+                <div id="options" class="options"></div>
+        </div>
+        <style media="screen">
+            .optionVideo {
+                position: absolute;
+                z-index: 10;
+                background-color: white;
+                border-radius: 3px;
+                color : black;
+            }
+            body {
+                font-family: -apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+                background-color: #262C3A;
+                color:white;
+                margin:0;
+            }
+            .conteneur {
+                display: grid;
+                grid-template-columns: 20vw 80vw;
+                height: 100vh;
+            }
+            .commande {
+                overflow-y: auto;
+            }
+            .tchat {
+                display: grid;
+                grid-template-rows: 50vh 50vh;
+                width: 100%;
+            }
+            #room, #name {
+                max-width: calc(100% - 8px);
+                /*border :0;
+                padding: 0;*/
+            }
+            .conteneurVideo {
+                background-color: black;
+                position: relative;
+            }
+            .acceptCall {
+                display: block;
+                background-color: green;
+                padding: 4px;
+                position: absolute;
+                z-index: 3;
+                margin-left: auto;
+                margin-right: auto;
+                width: auto;
+            }
+            .conteneur_remoteVideo {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                grid-auto-rows: auto;
+                height: 100%;
+                position: relative;
+                /*width: 100%;*/
+            }
+            .conteneur_User_Video {
+                display: flex;
+                align-items: center;
+                position: relative;
+            }
+            .conteneur_User_Video, .active_video {
+                max-height: 100%;
+                width:100%;
+            }
+            .active_video {
+                position : absolute;
+            }
+            .icon_cam {
+                position: absolute;
+                width: 20%;
+                right: 0;
+            }
+            .codecPreference {
+                max-width: 100%;
+            }
+            .icon {
+                position: absolute;
+                z-index: 2;
+                bottom: 0;
+                user-select: none;
+            }
+            .conteneurInputMessage {
+                display: grid;
+                grid-template-rows: 85fr 45px;
+            }
+            path.on {
+                display: none;
+            }
+            .conteneurInputMessage input {
+                width: 100%;
+                height: 100%;
+                max-height: 50px;
+                padding : 0;
+                margin : 0;
+                border : none;
+                border-radius: 5px;
+            }
+            .conteneurMessage {
+                padding: 5px;
+            }
+            .output_message {
+                display: flex;
+                flex-direction: column-reverse;
+                height: 100%;
+                overflow-y: auto;
+            }
+            .name, .message {
+                margin-left: 1rem;
+            }
+            .name {
+                font-size: 1.1rem;
+            }
+            .message {
+                font-size: 1rem;
+                color: #c5c5c5;
+                padding: 3px;
+                border-radius: 3px;
+            }
+            .message:hover {
+                background-color: #222937;
+            }
+            #mute-audio, #screenShare,#screenSharing, #mute-video, #endCall circle {
+                opacity: 0.8;
+                fill: grey;
+            }
+            #mute-audio:hover, #screenShare:hover, #mute-video:hover circle {
+              fill: #407cf7;
+            }
+            .inactive circle {
+                fill: #205cd7;
+            }
+            #endCall:hover circle{
+                fill: red;
+            }
+            .inputZone {
+                border-radius: 3px;
+                width: 100%;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .localVideo {
+                z-index: 1;
+                width: 10%;
+                height: auto;
+                position: absolute;
+                transform: rotateY(180deg);
+                -webkit-transform:rotateY(180deg);
+                -moz-transform:rotateY(180deg);
+            }
+            .mainVideo {
+                z-index: 1;
+                position: absolute;
+            }
+            .stats {
+                z-index: 3;
+                position: absolute;
+                bottom: 0;
+                right: 0;
+            }
+
+        </style>
+        <script type="text/javascript" async>
+        "use strict"
+        var isOkForCall = false;
+        var localScreen = null;
+        var localCamMicro = null;
+        var localVideoTransceiver = [];
+        var localAudioTransceiver = [];
+        var localAStreamTransceiver = [];
+        var localVStreamTransceiver = [];
+        var queuIceCandidate = [];
+        var queuStartCall = [];
+        var statInterval = null;
+        var videoSelected = null;
+        const codecPreferenceCamera = document.getElementById('codecPreferenceCamera');
+        const codecPreferenceScreen = document.getElementById('codecPreferenceScreen');
+        const supportsSetCodecPreferences = window.RTCRtpTransceiver && 'setCodecPreferences' in window.RTCRtpTransceiver.prototype;
+
+        if (supportsSetCodecPreferences) {
+            const {codecs} = RTCRtpSender.getCapabilities('video');
+            codecs.forEach(codec => {
+            if (['video/red', 'video/ulpfec', 'video/rtx'].includes(codec.mimeType)) {
+                return;
+            }
+            const option = document.createElement('option');
+            option.value = (codec.mimeType + ' ' + (codec.sdpFmtpLine || '')).trim();
+            option.innerText = option.value;
+            codecPreferenceCamera.appendChild(option);
+            codecPreferenceScreen.appendChild(option.cloneNode(true));
+            });
+        }
+        function url_serverName() {
+            const param = new URLSearchParams(window.location.search)
+            return param.get("s");
+        }
+        function onSuccess() {};
+        function onError(error) {
+            console.error(error);
+            document.getElementById('info').innerHTML += "<br>" + error;
+        }
+        var myName = localStorage.getItem('user_name') ||
+                Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        var room = localStorage.getItem('room_name') || "default";
+        if(url_serverName() != room && url_serverName() != null) {
+            room = url_serverName();
+            localStorage.setItem('room_name', room);
+        }
+        document.getElementById('name').value = myName;
+        document.getElementById('room').value = room;
+        var isCaller = [], localPeerConnection = [], connection = null;
+        //RTCSignalingState
+
+        const peer_config = {
+            iceServers: [{ urls : ["stun:stun.l.google.com:19302", "stun:stun4.l.google.com:19302"]}]
+        };
+        //"stun:146.88.237.59:3478"
+//,
+        var remoteVideo = document.getElementById('remoteVideo');
+        var localVideo = document.getElementById('localVideo'), mediaStreamConstraints =
+        {   "audio": true, "video": true  };
+        function id () {
+            return (Math.random() * 10000 + 10000 | 0).toString();
+        }
+        function connect_to_room(coType) {
+            if(connection != null) {
+                connection.close();
+                connection = null;
+            }
+            const url = (coType.value == "proxy")?"wss://pi-univers.fr/websocketVideo/" : "wss://pi-univers.fr:8080/";
+
+            connection = new WebSocket(url+room);
+            connection.onopen = () => {
+                document.getElementById('websocket').innerHTML = "Connected";
+                console.log("WebSocket is connected");
+                sendMessage({
+                    "messageFrom" : myName,
+                    "message" : "is connected to the tchat"
+                });
+                sendMessage({
+                    "whoIsCo": "request",
+                    "sender" : myName,
+                });
+            }
+            connection.onclose = () => {
+                document.getElementById('websocket').innerHTML ="Déconnecté";
+                //connect_to_room();
+            }
+            connection.onerror = (error) => {
+                document.getElementById('info').innerHTML +="Une erreur de communication avec le server<br>";
+                console.log(`WebSocket error: ${error}`);
+            }
+            connection.onmessage = async (event) => {
+                var data = JSON.parse(event.data);
+                if(data.whoIsCo == "request") {
+                    sendMessage({
+                        "broadcast": "connected",
+                        "sender" : myName
+                    });
+                }
+                if(data.broadcast == "connected") {
+                    document.getElementById("WebSocketPerson").innerHTML += data.sender+"<br>";
+                }
+                if(data.close) {
+                    if(localPeerConnection[data.closeFrom]) {
+                        if(localPeerConnection[data.closeFrom].connectionState == "connected") {
+                            localPeerConnection[data.closeFrom].close();
+                            document.getElementById('webrtc').innerHTML = data.closeFrom + " close the connection";
+                        }
+                        localPeerConnection[data.closeFrom] = null;
+                        delete localPeerConnection[data.closeFrom];
+                        if(document.getElementById("conteneur_"+data.closeFrom)) {
+                            var child = document.getElementById("conteneur_"+data.closeFrom);
+                            child.parentNode.removeChild(child);
+                            document.getElementById("conteneur_remoteVideo").style.gridTemplateColumns = "repeat("+((document.getElementById("conteneur_remoteVideo").childElementCount >= 3) ? 3: (document.getElementById("conteneur_remoteVideo").childElementCount))+",1fr)";
+                        }
+
+                    }
+                }
+                if(data.startCall) {
+                    console.log(isOkForCall);
+                    if(isOkForCall) {
+                        console.log(isOkForCall);
+                        sendMessage({
+                            "broadcast": "reponse",
+                            "sender" : myName,
+                            "receiver" : data.sender
+                        });
+                        if(pseudo_score(data.sender) < pseudo_score(myName)) {
+                            sendMessage({
+                                "start" : 1,
+                                "sender" : myName,
+                                "receiver" : data.sender
+                            });
+                            print_info("start "+myName + " "+data.sender);
+                            isCaller[data.sender] = true;
+                            localPeerConnection[data.sender] = new RTCPeerConnection(peer_config);
+                        }
+                        else {
+                            isCaller[data.sender] = false;
+                        }
+                        print_info("S broadcast" + " "+myName);
+                    }
+                    else {
+                        document.getElementById("acceptCall").style.display = "block";
+                    }
+                }
+                if(data.broadcast == "request" && isOkForCall) {
+                    if(pseudo_score(data.sender) < pseudo_score(myName)) {
+                        sendMessage({
+                            "start" : 1,
+                            "sender" : myName,
+                            "receiver" : data.sender
+                        });
+                        print_info("start "+myName + " "+data.sender);
+                        isCaller[data.sender] = true;
+                        localPeerConnection[data.sender] = new RTCPeerConnection(peer_config);
+                    }
+                    else {
+                        isCaller[data.sender] = false;
+                    }
+                    sendMessage({
+                        "broadcast" : "reponse",
+                        "sender" : myName,
+                        "receiver" : data.sender
+                    });
+                }
+                else if(data.broadcast == "reponse" && !localPeerConnection[data.sender] && data.receiver == myName) {
+                    document.getElementById('info').innerHTML += "R broadcast rep : "+data.sender+"<br>";
+                    console.log(data.sender);
+                    console.log(pseudo_score(data.sender) +" "+ pseudo_score(myName));
+                    if(pseudo_score(data.sender) < pseudo_score(myName)) {
+                        sendMessage({
+                            "start" : 1,
+                            "sender" : myName,
+                            "receiver" : data.sender
+                        });
+                        print_info("start "+myName + " "+data.sender);
+                        isCaller[data.sender] = true;
+                        localPeerConnection[data.sender] = new RTCPeerConnection(peer_config);
+                    }
+                    else {
+                        isCaller[data.sender] = false;
+                    }
+                }
+                if(data.receiver == myName) {
+                    if(data.start) {
+                        sendMessage({
+                            "ok": 1,
+                            "sender" : myName,
+                            "receiver" : data.sender
+                        });
+                        localPeerConnection[data.sender] = new RTCPeerConnection(peer_config);
+                        calling(data.sender);
+                        print_info("ok "+ data.sender + " "+data.receiver);
+                        document.getElementById('webrtc').innerHTML = "Connecting ...";
+                    }
+                    if (data.ok) {
+                        console.log("Ready to start");
+                        calling(data.sender);
+                        print_info("ready "+ data.sender + " "+data.receiver);
+                        document.getElementById('webrtc').innerHTML = "Connecting ...";
+                    }
+                    else if (data.sdp) {
+                        if (data.sdp.type == "offer" && localPeerConnection[data.sender].signalingState != "stable") {
+                            if (!isCaller[data.sender]) return;
+                              await Promise.all([
+                                localPeerConnection[data.sender].setLocalDescription({type: "rollback"}),
+                                localPeerConnection[data.sender].setRemoteDescription(data.sdp, answer, onError)
+                              ]);
+                            } else {
+                              await localPeerConnection[data.sender].setRemoteDescription(data.sdp, answer, onError);
+                            }
+                            if(queuIceCandidate[data.sender] != null) {
+                                queuIceCandidate[data.sender].forEach(candidate => {
+                                    localPeerConnection[data.sender].addIceCandidate(new RTCIceCandidate(candidate),onSuccess, onError);
+                                });
+                                queuIceCandidate[data.sender] = [];
+                                queuIceCandidate[data.sender] = null;
+                                delete queuIceCandidate[data.sender];
+                            }
+                            function answer () {
+                                  if (localPeerConnection[data.sender].remoteDescription.type === 'offer') {
+                                    localPeerConnection[data.sender].createAnswer().then(function (offer) {
+                                        localPeerConnection[data.sender].setLocalDescription(
+                                            offer, () => sendMessage({
+                                                'sender': myName,
+                                                'receiver': data.sender,
+                                                'sdp': localPeerConnection[data.sender].localDescription
+                                            }),onError
+                                          );
+                                    }).catch(onError);
+                                  }
+                            }
+                          }
+                  else if (data.candidate) {
+                      print_info(data.sender+" "+data.receiver+ " candidate");
+                      //console.log(localPeerConnection[data.sender].signalingState);
+                      if(!localPeerConnection[data.sender] || !localPeerConnection[data.sender].remoteDescription){
+                          if(!queuIceCandidate[data.sender]) queuIceCandidate[data.sender] = [];
+                          queuIceCandidate[data.sender].push(data.candidate);
+                      }
+                      else{
+                          localPeerConnection[data.sender].addIceCandidate(new RTCIceCandidate(data.candidate),onSuccess, onError);
+                      }
+                  }
+              }
+                else if(data.message) {
+                    print_message(data.messageFrom, data.message);
+                }
+            }
+        }
+        function createRandomVideo () {
+            var x = document.createElement("video");
+            x.setAttribute('id', Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+            x.setAttribute('class', 'active_video');
+            x.setAttribute('style', 'background:green');
+            x.setAttribute('autoplay', true);
+            x.setAttribute('playinline', true);
+            document.getElementById("conteneur_remoteVideo").appendChild(x);
+        }
+
+        async function calling(peer_name) {
+            console.log("calling start");
+
+            if(localCamMicro) {
+                console.log("sender : "+peer_name);
+                console.log(localCamMicro.getAudioTracks()[0]);
+                localAudioTransceiver[peer_name] = localPeerConnection[peer_name].addTransceiver('audio', {direction: "inactive"});
+                localVideoTransceiver[peer_name] = localPeerConnection[peer_name].addTransceiver('video', {direction: "inactive"});
+                localAStreamTransceiver[peer_name]=localPeerConnection[peer_name].addTransceiver('audio', {direction: "inactive"});
+                localVStreamTransceiver[peer_name]=localPeerConnection[peer_name].addTransceiver('video', {direction: "inactive"});
+                if(localCamMicro.getAudioTracks()[0]) {
+                    localAudioTransceiver[peer_name].direction = "sendonly";
+                    localAudioTransceiver[peer_name].sender.replaceTrack(localCamMicro.getAudioTracks()[0]);
+                }
+                if(localCamMicro.getVideoTracks()[0]) {
+                    var selectCodec = getCodec("Camera");
+                    if(selectCodec != null) {
+                        localVideoTransceiver[peer_name].setCodecPreferences(selectCodec);
+                    }
+                    localVideoTransceiver[peer_name].direction = "sendonly";
+                    localVideoTransceiver[peer_name].sender.replaceTrack(localCamMicro.getVideoTracks()[0]);
+                }
+            }
+            else {
+                var getCam = new Promise((resolve, reject) => {
+                    navigator.mediaDevices.getUserMedia({
+                      video: true
+                    }).then(stream => {
+                        resolve(stream.getVideoTracks()[0]);
+                    }, reject);
+
+                });
+                var getAudio = new Promise((resolve, reject) => {
+                    navigator.mediaDevices.getUserMedia({
+                      audio: true
+                    }).then(stream => {
+                        resolve(stream.getAudioTracks()[0]);
+                    }, reject);
+
+                });
+                Promise.all([
+                    getAudio.catch(error => { return null }),
+                    getCam.catch(error => { return null })
+                ]).then(values => {
+                    localAudioTransceiver[peer_name] = localPeerConnection[peer_name].addTransceiver('audio', {direction: "inactive"});
+                    localVideoTransceiver[peer_name] = localPeerConnection[peer_name].addTransceiver('video', {direction: "inactive"});
+                    localAStreamTransceiver[peer_name] = localPeerConnection[peer_name].addTransceiver('audio', {direction: "inactive"});
+                    localVStreamTransceiver[peer_name] = localPeerConnection[peer_name].addTransceiver('video', {direction: "inactive"});
+                    localCamMicro = new MediaStream();
+                    console.log("ajout des stream ok");
+                    console.log(values);
+                    if(values[0] != null) {
+                        localCamMicro.addTrack(values[0]);
+                        localAudioTransceiver[peer_name].sender.replaceTrack(values[0]);
+                        localAudioTransceiver[peer_name].direction = "sendonly";
+                    }
+                    else {
+                        document.getElementById('offAudio').style.display = "block";
+                        document.getElementById('mute-audio').setAttribute("class", "inactive");
+                    }
+                    if(values[1] != null) {
+                        var selectCodec = getCodec("Camera");
+                        if(selectCodec != null) {
+                            localVideoTransceiver[peer_name].setCodecPreferences(selectCodec);
+                        }
+                        localCamMicro.addTrack(values[1]);
+                        document.getElementById('localVideo').srcObject = localCamMicro;
+                        localVideoTransceiver[peer_name].sender.replaceTrack(values[1]);
+                        localVideoTransceiver[peer_name].direction = "sendonly";
+                    }
+                    else {
+                        document.getElementById('offVideo').style.display = "block";
+                        document.getElementById('mute-video').setAttribute("class", "inactive");
+                    }
+                    var screeeen = getCodec("Screen");
+                    if(screeeen != null) {
+                        localVStreamTransceiver[peer_name].setCodecPreferences(screeeen);
+                    }
+                });
+            }
+            localPeerConnection[peer_name].onconnectionstatechange = event => {
+                if(localPeerConnection[peer_name].connectionState == "connected") {
+                    document.getElementById('webrtc').innerHTML = "connected";
+                }
+                else if(localPeerConnection[peer_name].connectionState == "closed" || localPeerConnection[peer_name].connectionState == "disconnected") {
+                    document.getElementById('webrtc').innerHTML = peer_name + " close the connection";
+                    localPeerConnection[peer_name].close();
+                    if(statInterval[peer_name]) clearInterval(statInterval[peer_name]);
+                    localPeerConnection[peer_name] = null;
+                    delete localPeerConnection.peer_name;
+                    var child = document.getElementById("conteneur_"+peer_name);
+                    child.parentNode.removeChild(child);
+                    document.getElementById("conteneur_remoteVideo").style.gridTemplateColumns = "repeat("+((document.getElementById("conteneur_remoteVideo").childElementCount >= 3) ? 3: (document.getElementById("conteneur_remoteVideo").childElementCount))+",1fr)";
+                    console.log("webrtc connection as been closed 2");
+                }
+            }
+
+            localPeerConnection[peer_name].onicecandidate = event => {
+                if(event.candidate) {
+                    sendMessage({
+                        'sender': myName,
+                        'receiver': peer_name,
+                        'candidate' : event.candidate});
+                }
+            };
+
+            localPeerConnection[peer_name].onnegotiationneeded = async () => {
+              try {
+                const offer = await localPeerConnection[peer_name].createOffer();
+                //console.log(offer.sdp);
+                if (localPeerConnection[peer_name].signalingState != "stable") return;
+                await localPeerConnection[peer_name].setLocalDescription(offer);
+                sendMessage({
+                    'sender': myName,
+                    'receiver': peer_name,
+                    'sdp': await localPeerConnection[peer_name].localDescription
+                });
+                if(queuIceCandidate[peer_name] != null) {
+                    queuIceCandidate[peer_name].forEach(candidate => {
+                        localPeerConnection[peer_name].addIceCandidate(new RTCIceCandidate(candidate),onSuccess, onError);
+                    });
+                    queuIceCandidate[peer_name] = [];
+                    queuIceCandidate[peer_name] = null;
+                    delete queuIceCandidate[peer_name];
+                }
+              } catch (e) {
+                console.log(e);
+              }
+            };
+            //peerStat(peer_name);
+            localPeerConnection[peer_name].ontrack = ({transceiver, streams : [stream]}) => {
+                console.log("new track : " + transceiver.receiver.track.kind)
+                console.log(transceiver.receiver.track);
+                console.log("mid : "+transceiver.mid);
+                if(!document.getElementById("conteneur_"+peer_name)) {
+                    var x = document.createElement("div");
+                    x.setAttribute('id', "conteneur_"+peer_name);
+                    x.setAttribute('class', 'conteneur_User_Video');
+                    document.getElementById("conteneur_remoteVideo").appendChild(x);
+                    //document.getElementById("conteneur_"+peer_name).addEventListener("click", activeVideo);
+
+                }
+                if(!document.getElementById("stats_"+peer_name)) {
+                    var x = document.createElement("span");
+                    x.setAttribute('id', "stats_"+peer_name);
+                    x.setAttribute('class', "stats");
+                    document.getElementById("conteneur_"+peer_name).appendChild(x);
+                }
+
+                if((transceiver.mid >= 4 && transceiver.mid < 6) || transceiver.mid < 2) {
+                    //cam/micro
+                    console.log("cam");
+                    if(!document.getElementById(peer_name)){
+                        createVideo("conteneur_"+peer_name, peer_name, "active_video");
+                    }
+                    if(1) {
+                        document.getElementById("conteneur_remoteVideo").style.gridTemplateColumns = "repeat("+((document.getElementById("conteneur_remoteVideo").childElementCount >= 3) ? 3: (document.getElementById("conteneur_remoteVideo").childElementCount))+",1fr)";
+                    }
+                    if (!document.getElementById(peer_name).srcObject || document.getElementById(peer_name).srcObject.getTracks().length == 0) {
+                        document.getElementById(peer_name).srcObject = new MediaStream([transceiver.receiver.track]);
+                        //document.getElementById(peer_name).play();
+                    }
+                    else {
+                        if(transceiver.receiver.track.kind == "video") {
+                            if(document.getElementById(peer_name).srcObject.getVideoTracks()[0]) {
+                                document.getElementById(peer_name).srcObject.removeTrack(document.getElementById(peer_name).srcObject.getVideoTracks()[0]);
+                            }
+                        }
+                        else if(transceiver.receiver.track.kind == "audio") {
+                            if(document.getElementById(peer_name).srcObject.getAudioTracks()[0]) {
+                                document.getElementById(peer_name).srcObject.removeTrack(document.getElementById(peer_name).srcObject.getAudioTracks()[0]);
+                            }
+                        }
+                        document.getElementById(peer_name).srcObject.addTrack(transceiver.receiver.track);
+                    }
+                    //mute
+                    if(transceiver.receiver.track.kind == "video") {
+                        transceiver.receiver.track.onmute = () => {
+                            console.log("mute cam");
+                            document.getElementById(peer_name).style.display = "none";
+                        };
+                        transceiver.receiver.track.onunmute = () => {
+                            console.log("unmute cam");
+                            document.getElementById(peer_name).style.display = "block";
+                        };
+                    }
+                }
+                else {
+                    //screen
+                    console.log("screen track");
+                    if(!document.getElementById("stream_"+peer_name)){
+                        createVideo("conteneur_"+peer_name, "stream_"+peer_name, "active_video");
+                    }
+
+                    if(transceiver.receiver.track.kind == "video") {
+                        document.getElementById("conteneur_remoteVideo").style.gridTemplateColumns = "repeat("+((document.getElementById("conteneur_remoteVideo").childElementCount >= 3) ? 3: (document.getElementById("conteneur_remoteVideo").childElementCount))+",1fr)";
+                        if(document.getElementById(peer_name)){
+                            document.getElementById(peer_name).classList.add("icon_cam");
+                        }
+                    }
+                    if (!document.getElementById("stream_"+peer_name).srcObject || document.getElementById("stream_"+peer_name).srcObject.getTracks().length == 0) {
+                        document.getElementById("stream_"+peer_name).srcObject = new MediaStream([transceiver.receiver.track]);
+                    }
+                    else {
+                        if(transceiver.receiver.track.kind == "video") {
+                            if(document.getElementById("stream_"+peer_name).srcObject.getVideoTracks()[0]) {
+                                document.getElementById("stream_"+peer_name).srcObject.removeTrack(document.getElementById("stream_"+peer_name).srcObject.getVideoTracks()[0]);
+                            }
+                        }
+                        else if(transceiver.receiver.track.kind == "audio") {
+                            if(document.getElementById("stream_"+peer_name).srcObject.getAudioTracks()[0]) {
+                                document.getElementById("stream_"+peer_name).srcObject.removeTrack(document.getElementById("stream_"+peer_name).srcObject.getAudioTracks()[0]);
+                            }
+                        }
+                        else console.log("hey");
+                        document.getElementById("stream_"+peer_name).srcObject.addTrack(transceiver.receiver.track);
+                    }
+                    //mute
+                    if(transceiver.receiver.track.kind == "video") {
+                        transceiver.receiver.track.onmute = () => {
+                            console.log("mute stream");
+                            document.getElementById("stream_"+peer_name).style.display = "none";
+                            document.getElementById(peer_name).classList.remove("icon_cam");
+                        };
+                        transceiver.receiver.track.onunmute = () => {
+
+                            console.log("unmute stream");
+                            document.getElementById("stream_"+peer_name).style.display = "block";
+                            if(document.getElementById(peer_name)) {
+                                document.getElementById(peer_name).classList.add("icon_cam");
+                            }
+
+                        };
+                    }
+                }
+            }
+        }
+
+        function start() {
+            sendMessage({
+                "startCall": "request",
+                "sender": myName
+            });
+            isOkForCall = true;
+        }
+
+        function changeName() {
+            myName = document.getElementById('name').value;
+            localStorage.setItem('user_name', myName);
+        }
+
+        function changeRoom() {
+            room = document.getElementById('room').value;
+            localStorage.setItem('room_name', room);
+            window.location.search = '?s='+room;
+        }
+        function sendMessage(data) {
+            //console.log(data);
+            connection.send(JSON.stringify(data));
+            //print_info(JSON.stringify(data));
+        }
+        function pseudo_score (pseudo) {
+            var score = 0;
+            for(var i = 0; i < pseudo.length; i++) {
+                score += pseudo.charCodeAt(i)*(i+1);
+            }
+            return score;
+        }
+        function escapeHtml(text) {
+          var map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+          };
+          return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+        function activeVideo(event) {
+            console.log(event);
+            var isMainVideo = 0;
+            this.classList.forEach(element => {
+                if(element == "mainVideo") {
+                    isMainVideo = 1;
+                    this.classList.remove("mainVideo");
+                    return;
+                }
+            });
+            if(!isMainVideo) {
+                this.classList.add("mainVideo");
+            }
+        }
+        function print_message(sender, message) {
+            var lastMess = document.getElementById('output_message').firstChild;
+            var lastSender  = document.getElementById('output_message').firstChild;
+            if(lastSender != null) lastSender = lastSender.firstChild.innerHTML;
+
+            if(lastSender != sender) {
+                var text = "<div class='conteneurMessage'>"+
+                    "<div class='name'>"+escapeHtml(sender)+"</div>"+
+                    "<div class='message'>"+escapeHtml(message)+"</div>"+
+                    "</div>";
+                    document.getElementById('output_message').insertAdjacentHTML('afterbegin', text);
+            }
+            else {
+                lastMess.innerHTML += "<div class='message'>"+escapeHtml(message)+"</div>";
+            }
+        }
+        function print_info(data) {
+            //document.getElementById('info').innerHTML += data+"<br>";
+            //console.log(data);
+        }
+        function videoOption (e) {
+            console.log(e.srcElement);
+            console.log(e.srcElement.id);
+            console.log(document.getElementById("spe-select").style.display);
+            if(document.getElementById("spe-select").style.display == "none") {
+                videoSelected = e.srcElement.id;
+                e.preventDefault();
+                var options = ['Couper le son', 'Pause la video'];
+                document.getElementById('optionAbout').innerHTML = e.srcElement.id;
+                document.getElementById("spe-select").style.display = "block";
+                document.getElementById("spe-select").style.top = window.event.clientY+"px";
+                document.getElementById("spe-select").style.left = window.event.clientX+"px";
+                document.getElementById("options").innerHTML = '';
+                var i = 0;
+                options.forEach(option => {
+                    console.log(e.srcElement.id);
+                    var button = document.createElement("button");
+                    button.setAttribute('id', e.srcElement.id);
+                    button.setAttribute('class', "options_");
+                    button.setAttribute("onclick", "mute"+((!(i%2))?("Audio"): ("Video"))+"()");
+                    button.innerHTML = option;
+                    document.getElementById("options").appendChild(button);
+                    i++;
+                });
+            }
+            else {
+                document.getElementById("spe-select").style.display = "none";
+            }
+
+        }
+        function muteAudio() {
+            /*if(document.getElementById(videoSelected).srcObject.getAudioTracks()[0]) {
+                if(document.getElementById(videoSelected).srcObject.getAudioTracks()[0].enabled) {
+                    document.getElementById(videoSelected).srcObject.getAudioTracks()[0].enabled = false;
+                }
+                else {
+                    document.getElementById(videoSelected).srcObject.getAudioTracks()[0].enabled = true;
+                }
+            }*/
+            var transAudio;
+            if(localAudioTransceiver.mid == 0) {
+                 transAudio = (localPeerConnection[videoSelected].getTransceivers()[4].receiver);
+            }
+            else {
+                transAudio = (localPeerConnection[videoSelected].getTransceivers()[0].receiver);
+            }
+            console.log(transAudio.track);
+            transAudio.track.enabled = false;
+            //transAudio.track.enabled = false;
+            /*.forEach((item, i) => {
+                console.log(item);
+            });*/
+
+            //document.getElementById(videoSelected).pause();
+        }
+        function muteVideo() {
+            /*if(document.getElementById(videoSelected).srcObject.getVideoTracks()[0]) {
+                if(document.getElementById(videoSelected).srcObject.getVideoTracks()[0].enabled) {
+                    document.getElementById(videoSelected).srcObject.getVideoTracks()[0].enabled = false;
+                }
+                else {
+                    document.getElementById(videoSelected).srcObject.getVideoTracks()[0].enabled = true;
+                }
+            }*/
+            var transAudio;
+            if(localVideoTransceiver.mid == 1) {
+                 transAudio = (localPeerConnection[videoSelected].getTransceivers()[5]);
+            }
+            else {
+                transAudio = (localPeerConnection[videoSelected].getTransceivers()[1]);
+            }
+            console.log(transAudio.track);
+            if (transAudio.direction == "inactive") {
+                transAudio.direction = "recvonly";
+            }
+            else {
+                transAudio.direction = "inactive";
+            }
+        }
+        function createVideo(parent, id, class_name) {
+            var x = document.createElement("video");
+            x.setAttribute('id', id);
+            x.setAttribute('class', class_name);
+            x.setAttribute('autoplay',"");
+            x.setAttribute('playinline', "");
+            x.addEventListener( "contextmenu", videoOption);
+            document.getElementById(parent).appendChild(x);
+        }
+        document.getElementById('screenShare').addEventListener('click', function (e) {
+            //console.log(localVStreamTransceiver.sender.track);
+            if(!localScreen) {
+                navigator.mediaDevices.getDisplayMedia({video: true, audio:true}).then(stream => {
+                    localScreen = stream;
+                    localVideo.srcObject = stream;
+                    for (let [key, value] of Object.entries(localVStreamTransceiver)) {
+                        localVStreamTransceiver[key].sender.replaceTrack(stream.getVideoTracks()[0]);
+                        localVStreamTransceiver[key].direction = "sendonly";
+                    }
+                    for (let [key, value] of Object.entries(localAStreamTransceiver)) {
+                        localAStreamTransceiver[key].sender.replaceTrack(stream.getAudioTracks()[0]);
+                        localAStreamTransceiver[key].direction = "sendonly";
+                    }
+                }, onError);
+            }
+            else {
+                if(localScreen.getVideoTracks()[0]) localScreen.getVideoTracks()[0].stop();
+                if(localScreen.getAudioTracks()[0]) localScreen.getAudioTracks()[0].stop();
+                localScreen = null;
+                for (let [key, value] of Object.entries(localVStreamTransceiver)) {
+                    localVStreamTransceiver[key].sender.replaceTrack(null);
+                    localVStreamTransceiver[key].direction = "inactive";
+                }
+                for (let [key, value] of Object.entries(localAStreamTransceiver)) {
+                    localAStreamTransceiver[key].sender.replaceTrack(null);
+                    localAStreamTransceiver[key].direction = "inactive";
+                }
+            }
+        });
+        document.getElementById('mute-audio').addEventListener('click', function (e) {
+            //console.log(localAudioTransceiver.direction);
+            if(localCamMicro.getAudioTracks()[0]) {
+                localCamMicro.getAudioTracks()[0].stop();
+                localCamMicro.removeTrack(localCamMicro.getAudioTracks()[0]);
+                for (let [key, value] of Object.entries(localAudioTransceiver)) {
+                    console.log(localAudioTransceiver[key]);
+                    if(!localAudioTransceiver[key].stopped) {
+                        localAudioTransceiver[key].sender.replaceTrack(null);
+                        localAudioTransceiver[key].direction = "inactive";
+                    }
+                }
+                document.getElementById('mute-audio').setAttribute("class", "inactive");
+                document.getElementById('offAudio').style.display = "block";
+            }
+            else {
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                    localCamMicro.addTrack(stream.getAudioTracks()[0], stream);
+                    for (let [key, value] of Object.entries(localAudioTransceiver)) {
+                        console.log(localAudioTransceiver[key]);
+                        if(!localAudioTransceiver[key].stopped) {
+                            localAudioTransceiver[key].sender.replaceTrack(stream.getAudioTracks()[0]);
+                            localAudioTransceiver[key].direction = "sendonly";
+                        }
+                    }
+                    document.getElementById('mute-audio').setAttribute("class", "active");
+                    document.getElementById('offAudio').style.display = "none";
+                }, onError);
+            }
+        });
+        document.getElementById('mute-video').addEventListener('click', function (e) {
+            if(localCamMicro == null) return;
+            if(localCamMicro.getVideoTracks()[0]) {
+                localCamMicro.getVideoTracks()[0].stop();
+                localCamMicro.removeTrack(localCamMicro.getVideoTracks()[0]);
+                for (let [key, value] of Object.entries(localVideoTransceiver)) {
+                    //localVideoTransceiver[key].sender.track.enabled = false;
+                    if(!localVideoTransceiver[key].stopped) {
+                        localVideoTransceiver[key].sender.replaceTrack(null);
+                        localVideoTransceiver[key].direction = "inactive";
+                    }
+                }
+                document.getElementById('mute-video').setAttribute("class", "inactive");
+                document.getElementById('offVideo').style.display = "block";
+                document.getElementById('localVideo').style.display = "none";
+            }
+            else {
+                navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                    localCamMicro.addTrack(stream.getVideoTracks()[0], stream);
+                    for (let [key, value] of Object.entries(localVideoTransceiver)) {
+                        //localVideoTransceiver[key].sender.track.enabled = true;
+
+                        if(!localVideoTransceiver[key].stopped) {
+                            localVideoTransceiver[key].sender.replaceTrack(stream.getVideoTracks()[0]);
+                            localVideoTransceiver[key].direction = "sendonly";
+                        }
+                    }
+                    document.getElementById('localVideo').srcObject = stream;
+                    document.getElementById('mute-video').setAttribute("class", "active");
+                    document.getElementById('offVideo').style.display = "none";
+                    document.getElementById('localVideo').style.display = "block";
+                }, onError);
+            }
+        });
+        document.getElementById('endCall').addEventListener('click', function (e) {
+            for (let [key, value] of Object.entries(localPeerConnection)) {
+                if(localPeerConnection[key] != null) {
+                    localPeerConnection[key].close();
+                    localPeerConnection[key] = null;
+                    delete localPeerConnection.key;
+                    var child = document.getElementById("conteneur_"+key);
+                    child.parentNode.removeChild(child);
+                }
+            }
+            sendMessage({
+                "close": 1,
+                "closeFrom": myName
+            });
+        });
+        document.getElementById('user_message').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                var mess = document.getElementById('user_message').value;
+                if(mess != '') {
+                    sendMessage({
+                        "messageFrom" : myName,
+                        "message" : mess
+                    });
+                    print_message(myName, mess);
+                    //document.getElementById('output_message').innerHTML += +" : "+escapeHtml(mess)+"<br>";
+                    document.getElementById('user_message').value='';
+                }
+            }
+        });
+        function showStats() {
+            if(statInterval == null) {
+                statInterval = window.setInterval(peerStat, 1000);
+            }
+            else {
+                clearInterval(statInterval);
+                statInterval = null;
+                for (let [key, value] of Object.entries(localPeerConnection)) {
+                    if(document.getElementById("stats_"+key)) {
+                        document.getElementById("stats_"+key).innerHTML = '';
+                    }
+                }
+            }
+        }
+        function peerStat() {
+
+            for (let [key, value] of Object.entries(localPeerConnection)) {
+                if(localPeerConnection[key] == null) break;
+                if(!localPeerConnection[key].getSenders()) break;
+                var i = 0;
+                for(i ; i < localPeerConnection[key].getSenders().length; i++) {
+                    if(localPeerConnection[key].getSenders()[i].track) {
+                        break;
+                    }
+                }
+            //start
+                if(i == localPeerConnection[key].getSenders().length) {
+                    i = 0;
+                    for(i ; i < localPeerConnection[key].getSenders().length; i++) {
+                        if(localPeerConnection[key].getSenders()[i].track) {
+                            break;
+                        }
+                    }
+                }
+                if(i == localPeerConnection[key].getSenders().length) return;
+                if(!localPeerConnection[key].getSenders()[i].track) {
+                    i = 0;
+                    for(i ; i < localPeerConnection[key].getSenders().length; i++) {
+                        if(localPeerConnection[key].getSenders()[i].track) {
+                            break;
+                        }
+                    }
+                }
+                if(i != localPeerConnection[key].getSenders().length) {
+                    localPeerConnection[key].getSenders()[i].getStats().then(function(stats) {
+                        if(stats.get(stats.get("RTCTransport_0_1").selectedCandidatePairId)) {
+                            document.getElementById("stats_"+key).innerHTML =  (stats.get(stats.get("RTCTransport_0_1").selectedCandidatePairId).currentRoundTripTime*1000) + " ms";
+                        }
+                    });
+                }
+                else {
+                    console.log("No track");
+                }
+            }
+            //end
+        }
+        function getCodec(device) {
+            if (supportsSetCodecPreferences) {
+                var couille = document.getElementById("codecPreference"+device);
+                const preferredCodec = couille.options[couille.selectedIndex];
+                //console.log(preferredCodec);
+                if (preferredCodec.value !== '') {
+                  const [mimeType, sdpFmtpLine] = preferredCodec.value.split(' ');
+                  const {codecs} = RTCRtpSender.getCapabilities('video');
+                  const selectedCodecIndex = codecs.findIndex(c => c.mimeType === mimeType && c.sdpFmtpLine === sdpFmtpLine);
+                  const selectedCodec = codecs[selectedCodecIndex];
+                  codecs.slice(selectedCodecIndex, 1);
+                  codecs.unshift(selectedCodec);
+                  /*console.log(codecs);
+                  console.log('Preferred video codec', selectedCodec);*/
+                  return codecs;
+                }
+                else return null;
+            }
+        }
+        function AcceptCall () {
+            isOkForCall = true;
+            sendMessage({
+                "broadcast": "request",
+                "sender" : myName,
+            });
+            document.getElementById("acceptCall").style.display = "none";
+            console.log("accepted");
+        }
+        document.getElementById("acceptCall").addEventListener("click", AcceptCall, false);
+        connect_to_room({value : "proxy"});
+        </script>
+    </body>
+</html>
